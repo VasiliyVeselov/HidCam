@@ -8,11 +8,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.SurfaceTexture;
+import android.hardware.Camera;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
+import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
 import android.os.Environment;
 import android.os.Handler;
@@ -20,6 +22,8 @@ import android.os.HandlerThread;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.Surface;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -46,6 +50,11 @@ public class VideoRecordingService extends Service {
     HandlerThread handlerThread;
     Handler handler;
 
+    private static Camera mServiceCamera;
+    private SurfaceView mSurfaceView;
+    private SurfaceHolder mSurfaceHolder;
+
+
     private CameraManager mCameraManager = null;
     private final int CAMERA_BACK = 0;
     private final int CAMERA_FRONT = 1;
@@ -54,15 +63,9 @@ public class VideoRecordingService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-
         Log.e(LOG_TAG, "onCreate()");
 
-        cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-        try {
-            cameraId = cameraManager.getCameraIdList()[0];
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
+
     }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -71,7 +74,11 @@ public class VideoRecordingService extends Service {
 
         // Start video recording
         //startVideoRecording(getApplicationContext());
-        startRecording(getApplicationContext());
+        try {
+            setUpMediaRecorder();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         return START_STICKY;
     }
@@ -91,127 +98,35 @@ public class VideoRecordingService extends Service {
     }
 
     private void startRecording(Context context) {
-        if (isRecording) {
-            return;
-        }
-        isRecording = true;
-        handlerThread = new HandlerThread("VideoRecordingThread");
-        handlerThread.start();
-        handler = new Handler(handlerThread.getLooper());
 
-        try {
-            mMediaRecorder = new MediaRecorder(context);
-
-            setUpMediaRecorder();
-
-            if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                Log.e(LOG_TAG, "NO checkSelfPermission");
-
-                return;
-            }
-            cameraManager.openCamera(cameraId, new CameraDevice.StateCallback() {
-                @Override
-                public void onOpened(@NonNull CameraDevice camera) {
-                    cameraDevice = camera;
-                    try {
-                        List<Surface> surfaces = new ArrayList<>();
-
-                        // Add surface for camera preview
-                        SurfaceTexture surfaceTexture = new SurfaceTexture(0);
-                        Surface previewSurface = new Surface(surfaceTexture);
-                        surfaces.add(previewSurface);
-
-                        // Add surface for MediaRecorder
-                        Surface recorderSurface = mMediaRecorder.getSurface();
-                        surfaces.add(recorderSurface);
-
-
-                        // Start a capture session
-                        cameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
-                            @Override
-                            public void onConfigured(@NonNull CameraCaptureSession session) {
-                                captureSession = session;
-                                try {
-                                    CaptureRequest.Builder previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-                                    previewRequestBuilder.addTarget(previewSurface);
-
-                                    CaptureRequest.Builder recordingRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_RECORD);
-                                    recordingRequestBuilder.addTarget(recorderSurface);
-
-                                    // Start preview
-                                    captureSession.setRepeatingRequest(previewRequestBuilder.build(), null, handler);
-
-                                    // Start recording
-                                    mMediaRecorder.start();
-                                    Log.e(LOG_TAG, "mMediaRecorder.start()");
-
-                                } catch (CameraAccessException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-
-                            @Override
-                            public void onConfigureFailed(@NonNull CameraCaptureSession session) {
-                                Log.e(LOG_TAG, "Capture session configuration failed");
-                            }
-                        }, handler);
-                    } catch (CameraAccessException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-                @Override
-                public void onDisconnected(@NonNull CameraDevice camera) {
-                    cameraDevice.close();
-                    cameraDevice = null;
-                }
-
-                @Override
-                public void onError(@NonNull CameraDevice camera, int error) {
-                    cameraDevice.close();
-                    cameraDevice = null;
-                }
-            }, handler);
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (CameraAccessException e) {
-            throw new RuntimeException(e);
-        }
     }
 
 
     private void setUpMediaRecorder() throws IOException {
+        mServiceCamera = Camera.open();
 
-        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-        //CamcorderProfile profile = CamcorderProfile.get(CamcorderProfile.QUALITY_480P);
-        //mMediaRecorder.setVideoFrameRate(profile.videoFrameRate);
-        //mMediaRecorder.setVideoSize(profile.videoFrameWidth, profile.videoFrameHeight);
-       // mMediaRecorder.setVideoEncodingBitRate(profile.videoBitRate);
-        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        mServiceCamera.unlock();
+
+        mMediaRecorder = new MediaRecorder();
+
+        mMediaRecorder.setCamera(mServiceCamera);
+        mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
+        mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.CAMERA);
         mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mMediaRecorder.setVideoEncodingBitRate(10000000);
-        mMediaRecorder.setVideoFrameRate(30);
-        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264); //contained inside MP4
-        //mMediaRecorder.setVideoSize(640, 480); //width 640, height 480
-        //mMediaRecorder.setVideoFrameRate(30);  //30 FPS
-        //mMediaRecorder.setVideoEncodingBitRate(3000000);
-        //mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.MPEG_4_SP);
-
+        mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
         mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+        mMediaRecorder.setVideoEncodingBitRate(512 * 1000);
+        mMediaRecorder.setVideoFrameRate(30);
+        mMediaRecorder.setVideoSize(640, 480);
 
-        //mMediaRecorder.setAudioEncodingBitRate(profile.audioBitRate);
+
+       // mMediaRecorder.setAudioEncodingBitRate(profile.audioBitRate);
         //mMediaRecorder.setAudioSamplingRate(profile.audioSampleRate);
         mMediaRecorder.setOutputFile(createVideoFile("front").getAbsolutePath());
 
         try {
             mMediaRecorder.prepare();
+            mMediaRecorder.start();
             Log.i(LOG_TAG, " запустили медиа рекордер");
 
         } catch (Exception e) {
@@ -237,13 +152,8 @@ public class VideoRecordingService extends Service {
         mMediaRecorder.reset();
         mMediaRecorder.release();
         mMediaRecorder = null;
-        cameraDevice.close();
-        cameraDevice = null;
-        captureSession.close();
-        captureSession = null;
-        handlerThread.quitSafely();
-        handlerThread = null;
-        handler = null;
+        mServiceCamera.release();
+        mServiceCamera = null;
         //mMediaRecorder.stop();
         //mMediaRecorder.reset();
         //mMediaRecorder.release();
