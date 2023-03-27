@@ -3,20 +3,19 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:gravity="center"
     android:orientation="vertical">
 
-    <androidx.camera.view.PreviewView
-        android:id="@+id/preview_view"
-        android:layout_width="360dp"
-        android:layout_height="360dp"
-        android:scaleType="centerCrop"
-        android:layout_gravity="center" />
+
 
     <Button
         android:id="@+id/buttonStop"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="300dp"
+        android:layout_height="500dp"
+        android:backgroundTint="@color/black"
         android:text="STOP" />
+
+
 
 
 </LinearLayout>
