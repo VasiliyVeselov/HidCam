@@ -24,7 +24,8 @@
 
         <service
             android:name=".MyForegroundService"
-            android:foregroundServiceType="mediaPlayback"
+            android:foregroundServiceType="microphone|camera"
+
             android:stopWithTask="true" />
         <activity
             android:name=".MainActivity"

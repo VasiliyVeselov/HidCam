@@ -1,36 +1,24 @@
 package com.noname.hidcam;
 
-import android.app.AlarmManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.media.MediaMuxer;
 import android.media.MediaRecorder;
 import android.os.Environment;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.PowerManager;
-import android.os.SystemClock;
 import android.util.Log;
-import android.view.Surface;
 import android.widget.Toast;
 
 import androidx.annotation.CallSuper;
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
-import androidx.camera.core.CameraX;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
-import androidx.lifecycle.Lifecycle;
-import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.LifecycleService;
 
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -39,15 +27,10 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
-public class MyForegroundService extends Service implements LifecycleOwner {
-
+public class MyForegroundService extends LifecycleService  {
+//implements LifecycleOwner
     ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
 
 
@@ -55,16 +38,16 @@ public class MyForegroundService extends Service implements LifecycleOwner {
 
     VideoRecorder videoRecorder;
 
-    private final ServiceLifecycleDispatcher mDispatcher = new ServiceLifecycleDispatcher(this);
+    //private final ServiceLifecycleDispatcher mDispatcher = new ServiceLifecycleDispatcher(this);
 
 
     @Override
     public void onCreate() {
-        mDispatcher.onServicePreSuperOnCreate();
         super.onCreate();
+        //mDispatcher.onServicePreSuperOnCreate();
         videoRecorder = new VideoRecorder();
 
-        }
+    }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -94,7 +77,10 @@ public class MyForegroundService extends Service implements LifecycleOwner {
 
 
     private void initCam(){
-        cameraProviderFuture = ProcessCameraProvider.getInstance(this);
+        cameraProviderFuture = ProcessCameraProvider.getInstance(getApplicationContext());
+        //HandlerThread handlerThread = new HandlerThread("CameraHandlerThread");
+        //handlerThread.start();
+        //Handler handler = new Handler(handlerThread.getLooper());
         cameraProviderFuture.addListener(() -> {
             try {
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
@@ -109,10 +95,9 @@ public class MyForegroundService extends Service implements LifecycleOwner {
                 ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
                         .build();
 
-                videoRecorder.startMediaRecorder(this);
+                videoRecorder.startMediaRecorder(getApplicationContext());
 
-                preview.setSurfaceProvider(request -> request.provideSurface(videoRecorder.mRecorder.getSurface(), getMainExecutor(),
-                        result -> {}));
+                preview.setSurfaceProvider(request -> request.provideSurface(videoRecorder.mRecorder.getSurface(), getMainExecutor(), result -> {}));
 
 
                 cameraProvider.unbindAll();
@@ -121,16 +106,16 @@ public class MyForegroundService extends Service implements LifecycleOwner {
             } catch (ExecutionException | InterruptedException | IOException e) {
                 e.printStackTrace();
             }
-        }, ContextCompat.getMainExecutor(this));
+        }, ContextCompat.getMainExecutor(getApplicationContext()));
     }
 
-
+//ContextCompat.getMainExecutor(getApplicationContext())
 
 
 
     @Override
     public void onDestroy() {
-        mDispatcher.onServicePreSuperOnDestroy();
+        //mDispatcher.onServicePreSuperOnDestroy();
         super.onDestroy();
         videoRecorder.stopMediaRecorder();
         Log.e("myLog", "onDestroy ");
@@ -141,7 +126,8 @@ public class MyForegroundService extends Service implements LifecycleOwner {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        mDispatcher.onServicePreSuperOnBind();
+        super.onBind(intent);
+        //mDispatcher.onServicePreSuperOnBind();
         return null;
     }
 
@@ -149,16 +135,16 @@ public class MyForegroundService extends Service implements LifecycleOwner {
     @CallSuper
     @Override
     public void onStart(@Nullable Intent intent, int startId) {
-        mDispatcher.onServicePreSuperOnStart();
+        //mDispatcher.onServicePreSuperOnStart();
         super.onStart(intent, startId);
     }
 
-    @NonNull
-    @Override
-    public Lifecycle getLifecycle() {
-        return mDispatcher.getLifecycle();
+   // @NonNull
+  //  @Override
+  //  public Lifecycle getLifecycle() {
+        //return mDispatcher.getLifecycle();
 
-    }
+   // }
 
     public class VideoRecorder implements MediaRecorder.OnInfoListener {
         private MediaRecorder mRecorder;
@@ -180,10 +166,10 @@ public class MyForegroundService extends Service implements LifecycleOwner {
             mRecorder.setVideoSize(1920, 1080);
             mRecorder.setAudioEncodingBitRate(128000);
             mRecorder.setAudioSamplingRate(44100);
-            //mRecorder.setMaxFileSize(MAX_FILE_SIZE);
+            mRecorder.setMaxFileSize(MAX_FILE_SIZE);
 
-            //mRecorder.setMaxDuration(MAX_RECORDING_TIME);
-            //mRecorder.setOnInfoListener(this);
+            mRecorder.setMaxDuration(MAX_RECORDING_TIME);
+            mRecorder.setOnInfoListener(this);
 
             mRecorder.setOutputFile(createVideoFile("backCam").getAbsolutePath());
             mRecorder.prepare();
@@ -225,12 +211,16 @@ public class MyForegroundService extends Service implements LifecycleOwner {
                     what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
                 Log.e("myLog", "onInfo(MediaRecorder)");
 
-                //stopMediaRecorder();
+                stopMediaRecorder();
 
 
-                //initCam();
+                initCam();
 
-                //   startMediaRecorder(MyForegroundService.this.getApplicationContext());
+                //try {
+                //    startMediaRecorder(getApplicationContext());
+               // } catch (IOException e) {
+                //    throw new RuntimeException(e);
+                //}
 
 
             }
