@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.media.MediaMuxer;
 import android.media.MediaRecorder;
 import android.os.Environment;
 import android.os.Handler;
@@ -14,12 +15,15 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.Surface;
 import android.widget.Toast;
 
 import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.camera.core.Camera;
 import androidx.camera.core.CameraSelector;
+import androidx.camera.core.CameraX;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
@@ -46,22 +50,19 @@ public class MyForegroundService extends Service implements LifecycleOwner {
 
     ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
 
-    MediaRecorder mRecorder;
 
-    private static final long INTERVAL = 5 * 60 * 1000; // 15 minutes in milliseconds
+    private static final int INTERVAL = 1 * 60 * 1000; // 15 minutes in milliseconds
 
-    Timer timer;
-    AlarmManager alarmManager;
-    Intent alarmIntent;
-    PendingIntent pendingIntent;
+    VideoRecorder videoRecorder;
 
     private final ServiceLifecycleDispatcher mDispatcher = new ServiceLifecycleDispatcher(this);
+
 
     @Override
     public void onCreate() {
         mDispatcher.onServicePreSuperOnCreate();
         super.onCreate();
-        timer = new Timer();
+        videoRecorder = new VideoRecorder();
 
         }
 
@@ -83,10 +84,6 @@ public class MyForegroundService extends Service implements LifecycleOwner {
         Toast toast = Toast.makeText(getApplicationContext(), "Running", Toast.LENGTH_SHORT);
         toast.show();
 
-        alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        alarmIntent = new Intent(this, MyBroadcastReceiver.class);
-        pendingIntent = PendingIntent.getBroadcast(this, 0, alarmIntent, PendingIntent.FLAG_IMMUTABLE);
-        alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,System.currentTimeMillis() + INTERVAL, pendingIntent);
 
 
         initCam();
@@ -94,18 +91,7 @@ public class MyForegroundService extends Service implements LifecycleOwner {
         return START_STICKY;
     }
 
-    private File createVideoFile(String position) throws IOException {
-        Date date = new Date();
-        SimpleDateFormat format = new SimpleDateFormat("ddMMyyyy_hh-mm-ss", Locale.getDefault());
 
-        String timeStamp = format.format(date);
-
-        Log.e("myLog", timeStamp);
-
-        File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).getAbsolutePath());
-
-        return File.createTempFile("VIDEO_" + position + "_" + timeStamp + "_no_number",".MP4", storageDir);
-    }
 
     private void initCam(){
         cameraProviderFuture = ProcessCameraProvider.getInstance(this);
@@ -123,9 +109,9 @@ public class MyForegroundService extends Service implements LifecycleOwner {
                 ImageAnalysis imageAnalysis = new ImageAnalysis.Builder()
                         .build();
 
-                startMediaRecorder();
+                videoRecorder.startMediaRecorder(this);
 
-                preview.setSurfaceProvider(request -> request.provideSurface(mRecorder.getSurface(), getMainExecutor(),
+                preview.setSurfaceProvider(request -> request.provideSurface(videoRecorder.mRecorder.getSurface(), getMainExecutor(),
                         result -> {}));
 
 
@@ -138,48 +124,15 @@ public class MyForegroundService extends Service implements LifecycleOwner {
         }, ContextCompat.getMainExecutor(this));
     }
 
-    private void startMediaRecorder() throws IOException {
-
-        mRecorder = new MediaRecorder(this);
-
-        mRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
-        mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
-        mRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
-        mRecorder.setOrientationHint(90);
-        mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-        mRecorder.setVideoSize(1920, 1080);
-        mRecorder.setAudioEncodingBitRate(128000);
-        mRecorder.setAudioSamplingRate(44100);
-
-        mRecorder.setOutputFile(createVideoFile("backCam").getAbsolutePath());
-        mRecorder.prepare();
-        mRecorder.start();
 
 
-        Log.e("myLog", "mRecorder.start()");
 
-    }
-
-    private void stopMediaRecorder(){
-        if (mRecorder!=null) {
-            mRecorder.stop();
-            mRecorder.release();
-            mRecorder = null;
-            Log.e("myLog", "mRecorder.stop()");
-            initCam();
-
-        }
-    }
 
     @Override
     public void onDestroy() {
         mDispatcher.onServicePreSuperOnDestroy();
         super.onDestroy();
-        mRecorder.stop();
-        mRecorder.release();
-        mRecorder = null;
-        alarmManager.cancel(pendingIntent);
+        videoRecorder.stopMediaRecorder();
         Log.e("myLog", "onDestroy ");
         Toast toast = Toast.makeText(getApplicationContext(),"Stopping", Toast.LENGTH_SHORT);
         toast.show();
@@ -206,9 +159,82 @@ public class MyForegroundService extends Service implements LifecycleOwner {
         return mDispatcher.getLifecycle();
 
     }
-    class UpdateTimeTask extends TimerTask {
-        public void run() {
-        stopMediaRecorder();
+
+    public class VideoRecorder implements MediaRecorder.OnInfoListener {
+        private MediaRecorder mRecorder;
+        private final int MAX_RECORDING_TIME = 1 * 60 * 1000; // 15 minutes in milliseconds
+        private final int MAX_FILE_SIZE = 100000000; // 100 MB in bytes
+
+
+        private void startMediaRecorder(Context context) throws IOException {
+
+            mRecorder = new MediaRecorder(context);
+
+
+            mRecorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+            mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+            mRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            mRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+            mRecorder.setOrientationHint(90);
+            mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+            mRecorder.setVideoSize(1920, 1080);
+            mRecorder.setAudioEncodingBitRate(128000);
+            mRecorder.setAudioSamplingRate(44100);
+            //mRecorder.setMaxFileSize(MAX_FILE_SIZE);
+
+            //mRecorder.setMaxDuration(MAX_RECORDING_TIME);
+            //mRecorder.setOnInfoListener(this);
+
+            mRecorder.setOutputFile(createVideoFile("backCam").getAbsolutePath());
+            mRecorder.prepare();
+            mRecorder.start();
+
+
+
+
+            Log.e("myLog", "mRecorder.start()");
+
+        }
+
+        private void stopMediaRecorder(){
+            if (mRecorder!=null) {
+                mRecorder.stop();
+                mRecorder.release();
+                mRecorder = null;
+                Log.e("myLog", "mRecorder.stop()");
+
+            }
+        }
+
+        private File createVideoFile(String position) throws IOException {
+            Date date = new Date();
+            SimpleDateFormat format = new SimpleDateFormat("ddMMyyyy_hh-mm-ss", Locale.getDefault());
+
+            String timeStamp = format.format(date);
+
+            //Log.e("myLog", timeStamp);
+
+            File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).getAbsolutePath());
+
+            return File.createTempFile("VIDEO_" + position + "_" + timeStamp + "__",".MP4", storageDir);
+        }
+
+        @Override
+        public void onInfo(MediaRecorder mediaRecorder, int what, int extra) {
+            if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED ||
+                    what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_FILESIZE_REACHED) {
+                Log.e("myLog", "onInfo(MediaRecorder)");
+
+                //stopMediaRecorder();
+
+
+                //initCam();
+
+                //   startMediaRecorder(MyForegroundService.this.getApplicationContext());
+
+
+            }
         }
     }
+
 }
