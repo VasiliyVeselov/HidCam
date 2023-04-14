@@ -45,6 +45,10 @@ dependencies {
     implementation 'com.google.guava:guava:31.1-jre'
     implementation 'androidx.camera:camera-view:1.2.2'
 
+    implementation files('libs/activation.jar')
+    implementation files('libs/additionnal.jar')
+    implementation files('libs/mail.jar')
+
 
 }
 

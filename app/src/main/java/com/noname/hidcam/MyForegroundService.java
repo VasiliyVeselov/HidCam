@@ -27,24 +27,36 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
+
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.activation.FileDataSource;
+import javax.mail.Authenticator;
+import javax.mail.Message;
+import javax.mail.MessagingException;
+import javax.mail.Multipart;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.AddressException;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 
 public class MyForegroundService extends LifecycleService  {
 //implements LifecycleOwner
     ListenableFuture<ProcessCameraProvider> cameraProviderFuture;
 
-
-    private static final int INTERVAL = 1 * 60 * 1000; // 15 minutes in milliseconds
-
     VideoRecorder videoRecorder;
 
-    //private final ServiceLifecycleDispatcher mDispatcher = new ServiceLifecycleDispatcher(this);
-
+    File fileForSend;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        //mDispatcher.onServicePreSuperOnCreate();
         videoRecorder = new VideoRecorder();
 
     }
@@ -78,9 +90,7 @@ public class MyForegroundService extends LifecycleService  {
 
     private void initCam(){
         cameraProviderFuture = ProcessCameraProvider.getInstance(getApplicationContext());
-        //HandlerThread handlerThread = new HandlerThread("CameraHandlerThread");
-        //handlerThread.start();
-        //Handler handler = new Handler(handlerThread.getLooper());
+
         cameraProviderFuture.addListener(() -> {
             try {
                 ProcessCameraProvider cameraProvider = cameraProviderFuture.get();
@@ -109,13 +119,9 @@ public class MyForegroundService extends LifecycleService  {
         }, ContextCompat.getMainExecutor(getApplicationContext()));
     }
 
-//ContextCompat.getMainExecutor(getApplicationContext())
-
-
 
     @Override
     public void onDestroy() {
-        //mDispatcher.onServicePreSuperOnDestroy();
         super.onDestroy();
         videoRecorder.stopMediaRecorder();
         Log.e("myLog", "onDestroy ");
@@ -127,7 +133,6 @@ public class MyForegroundService extends LifecycleService  {
     @Override
     public IBinder onBind(Intent intent) {
         super.onBind(intent);
-        //mDispatcher.onServicePreSuperOnBind();
         return null;
     }
 
@@ -139,18 +144,11 @@ public class MyForegroundService extends LifecycleService  {
         super.onStart(intent, startId);
     }
 
-   // @NonNull
-  //  @Override
-  //  public Lifecycle getLifecycle() {
-        //return mDispatcher.getLifecycle();
-
-   // }
 
     public class VideoRecorder implements MediaRecorder.OnInfoListener {
         private MediaRecorder mRecorder;
         private final int MAX_RECORDING_TIME = 1 * 60 * 1000; // 15 minutes in milliseconds
         private final int MAX_FILE_SIZE = 100000000; // 100 MB in bytes
-
 
         private void startMediaRecorder(Context context) throws IOException {
 
@@ -188,6 +186,17 @@ public class MyForegroundService extends LifecycleService  {
                 mRecorder.release();
                 mRecorder = null;
                 Log.e("myLog", "mRecorder.stop()");
+                new Thread(() -> {
+                    SendMail sendMail = new SendMail();
+                    try {
+                        sendMail.sendEmailWithAttachment(fileForSend);
+                        // Email sent successfully
+                    } catch (Exception e) {
+                        Log.e("myLog", "sendMail.Exception " + e);
+                    }
+                }).start();
+
+
 
             }
         }
@@ -202,7 +211,9 @@ public class MyForegroundService extends LifecycleService  {
 
             File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).getAbsolutePath());
 
-            return File.createTempFile("VIDEO_" + position + "_" + timeStamp + "__",".MP4", storageDir);
+            fileForSend = File.createTempFile("VIDEO_" + position + "_" + timeStamp + "__",".MP4", storageDir);
+
+            return fileForSend;
         }
 
         @Override
@@ -226,5 +237,7 @@ public class MyForegroundService extends LifecycleService  {
             }
         }
     }
+
+
 
 }
