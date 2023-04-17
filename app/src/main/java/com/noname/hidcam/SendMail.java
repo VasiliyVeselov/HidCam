@@ -51,7 +51,6 @@ public class SendMail {
         message.setFrom(new InternetAddress(EMAIL_FROM));
         message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
         message.setSubject(EMAIL_SUBJECT + videoFile.getName());
-        //message.setText(EMAIL_TEXT + videoFile.getName());
 
         MimeBodyPart messageBodyPart = new MimeBodyPart();
         messageBodyPart.setText(EMAIL_TEXT + videoFile.getName());

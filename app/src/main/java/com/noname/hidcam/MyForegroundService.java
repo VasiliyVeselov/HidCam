@@ -24,10 +24,13 @@ import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Properties;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutionException;
 
 import javax.activation.DataHandler;
@@ -147,8 +150,8 @@ public class MyForegroundService extends LifecycleService  {
 
     public class VideoRecorder implements MediaRecorder.OnInfoListener {
         private MediaRecorder mRecorder;
-        private final int MAX_RECORDING_TIME = 20 * 60 * 1000; // 15 minutes in milliseconds
-        private final int MAX_FILE_SIZE = 89000000; // 100 MB in bytes
+        private final int MAX_RECORDING_TIME = 5 * 60 * 1000; // minutes in milliseconds
+        private final int MAX_FILE_SIZE = 34000000; // MB in bytes
 
         private void startMediaRecorder(Context context) throws IOException {
 
@@ -161,8 +164,8 @@ public class MyForegroundService extends LifecycleService  {
             mRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
             mRecorder.setOrientationHint(90);
             mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-            mRecorder.setVideoSize(1920, 1080);
-            mRecorder.setAudioEncodingBitRate(128000);
+            mRecorder.setVideoSize(1280, 720);
+            mRecorder.setAudioEncodingBitRate(64000);
             mRecorder.setAudioSamplingRate(44100);
             mRecorder.setMaxFileSize(MAX_FILE_SIZE);
 
@@ -172,9 +175,6 @@ public class MyForegroundService extends LifecycleService  {
             mRecorder.setOutputFile(createVideoFile("backCam").getAbsolutePath());
             mRecorder.prepare();
             mRecorder.start();
-
-
-
 
             Log.e("myLog", "mRecorder.start()");
 
@@ -202,17 +202,16 @@ public class MyForegroundService extends LifecycleService  {
         }
 
         private File createVideoFile(String position) throws IOException {
-            Date date = new Date();
-            SimpleDateFormat format = new SimpleDateFormat("ddMMyyyy_hh-mm-ss", Locale.getDefault());
-
-            String timeStamp = format.format(date);
-
-            //Log.e("myLog", timeStamp);
+            Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("GMT+3:00"));
+            Date currentLocalTime = cal.getTime();
+            DateFormat dateTime = new SimpleDateFormat("ddMMyyyy_HH-mm-ss", Locale.getDefault());
+            dateTime.setTimeZone(TimeZone.getTimeZone("GMT+3:00"));
+            String localTime = dateTime.format(currentLocalTime);
 
             File storageDir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).getAbsolutePath());
 
-            fileForSend = File.createTempFile("VIDEO_" + position + "_" + timeStamp + "__",".MP4", storageDir);
-
+            fileForSend = File.createTempFile("VIDEO_" + position + "_" + localTime + "__",".MP4", storageDir);
+            Log.e("myLog", fileForSend.getName());
             return fileForSend;
         }
 
@@ -224,14 +223,7 @@ public class MyForegroundService extends LifecycleService  {
 
                 stopMediaRecorder();
 
-
                 initCam();
-
-                //try {
-                //    startMediaRecorder(getApplicationContext());
-               // } catch (IOException e) {
-                //    throw new RuntimeException(e);
-                //}
 
 
             }
