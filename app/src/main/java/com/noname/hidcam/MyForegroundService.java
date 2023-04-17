@@ -147,8 +147,8 @@ public class MyForegroundService extends LifecycleService  {
 
     public class VideoRecorder implements MediaRecorder.OnInfoListener {
         private MediaRecorder mRecorder;
-        private final int MAX_RECORDING_TIME = 1 * 60 * 1000; // 15 minutes in milliseconds
-        private final int MAX_FILE_SIZE = 100000000; // 100 MB in bytes
+        private final int MAX_RECORDING_TIME = 10 * 60 * 1000; // 15 minutes in milliseconds
+        private final int MAX_FILE_SIZE = 49000000; // 100 MB in bytes
 
         private void startMediaRecorder(Context context) throws IOException {
 

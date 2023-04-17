@@ -29,17 +29,18 @@ public class SendMail {
     private static final String PASSWORD = "smarT_1988";
     private static final String EMAIL_FROM = "veselov1503@yandex.ru";
     private static final String EMAIL_TO = "veselov1503@mail.ru";
-    private static final String EMAIL_SUBJECT = "!ВНИМАНИЕ! Видео, требующее просмотра от Веселова Василия !ВНИМАНИЕ!";
-    private static final String EMAIL_TEXT = "Нуждается в помощи: Веселов Василий Владимирович. 15.03.1981 г.р. Зарегистрирован: г. Тверь, ул. Можайского, д 71, кв 153. тел +7(903)808-69-20";
+    private static final String EMAIL_SUBJECT = "!ВНИМАНИЕ! Видео, требующее просмотра ";
+    private static final String EMAIL_TEXT = "Нуждается в помощи: Веселов Василий Владимирович. 15.03.1981 г.р. Зарегистрирован: г. Тверь, ул. Можайского, д 71, кв 153. тел +7(903)808-69-20 Video ";
 
 
     public void sendEmailWithAttachment(File videoFile) throws AddressException, MessagingException, IOException {
         Properties props = new Properties();
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.host", "smtp.yandex.ru");
+        //props.put("security.protocol", "SSL");
         props.put("mail.smtp.starttls.enable", "true");
         props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.port", "465");
+        props.put("mail.smtp.port", "587");
 
         Session session = Session.getInstance(props, new Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
@@ -50,8 +51,8 @@ public class SendMail {
         Message message = new MimeMessage(session);
         message.setFrom(new InternetAddress(EMAIL_FROM));
         message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
-        message.setSubject(EMAIL_SUBJECT);
-        message.setText(EMAIL_TEXT);
+        message.setSubject(EMAIL_SUBJECT + videoFile.getName());
+        message.setText(EMAIL_TEXT + videoFile.getName());
 
         MimeBodyPart messageBodyPart = new MimeBodyPart();
         messageBodyPart.setText("Please find attached the video file.");
