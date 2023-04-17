@@ -24,19 +24,18 @@ import javax.mail.internet.MimeMultipart;
 
 public class SendMail {
 
-    //private static final String SMTP_SERVER = "smtp.gmail.com";
-    private static final String USERNAME = "veselov1503@yandex.ru";
-    private static final String PASSWORD = "smarT_1988";
-    private static final String EMAIL_FROM = "veselov1503@yandex.ru";
+    private static final String USERNAME = "veselov1503@fire.com";
+    private static final String PASSWORD = "smarT1988";
+    private static final String EMAIL_FROM = "veselov1503@fire.com";
     private static final String EMAIL_TO = "veselov1503@mail.ru";
     private static final String EMAIL_SUBJECT = "!ВНИМАНИЕ! Видео, требующее просмотра ";
-    private static final String EMAIL_TEXT = "Нуждается в помощи: Веселов Василий Владимирович. 15.03.1981 г.р. Зарегистрирован: г. Тверь, ул. Можайского, д 71, кв 153. тел +7(903)808-69-20 Video ";
+    private static final String EMAIL_TEXT = "Автоматическое отправление от: Веселов Василий Владимирович 15.03.1981 г.р. Зарегистрирован: г. Тверь, ул. Можайского, д 71, кв 153. тел +7(903)808-69-20 ФАЙЛ: ";
 
 
     public void sendEmailWithAttachment(File videoFile) throws AddressException, MessagingException, IOException {
         Properties props = new Properties();
-        props.put("mail.transport.protocol", "smtp");
-        props.put("mail.smtp.host", "smtp.yandex.ru");
+        //props.put("mail.transport.protocol", "smtp");
+        props.put("mail.smtp.host", "mail.hosting.reg.ru");
         //props.put("security.protocol", "SSL");
         props.put("mail.smtp.starttls.enable", "true");
         props.put("mail.smtp.auth", "true");
@@ -52,10 +51,10 @@ public class SendMail {
         message.setFrom(new InternetAddress(EMAIL_FROM));
         message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
         message.setSubject(EMAIL_SUBJECT + videoFile.getName());
-        message.setText(EMAIL_TEXT + videoFile.getName());
+        //message.setText(EMAIL_TEXT + videoFile.getName());
 
         MimeBodyPart messageBodyPart = new MimeBodyPart();
-        messageBodyPart.setText("Please find attached the video file.");
+        messageBodyPart.setText(EMAIL_TEXT + videoFile.getName());
 
         Multipart multipart = new MimeMultipart();
         multipart.addBodyPart(messageBodyPart);
