@@ -25,9 +25,9 @@ import javax.mail.internet.MimeMultipart;
 public class SendMail {
 
     private static final String USERNAME = "veselov1503@fire.com";
-    private static final String PASSWORD = "smarT1988";
+    private static final String PASSWORD = "**********";
     private static final String EMAIL_FROM = "veselov1503@fire.com";
-    private static final String EMAIL_TO = "veselov1503@mail.ru";
+    private static final String EMAIL_TO = "veselov1503@mail.ru,nad8298@yandex.ru";
     private static final String EMAIL_SUBJECT = "!ВНИМАНИЕ! Видео, требующее просмотра ";
     private static final String EMAIL_TEXT = "Автоматическое отправление от: Веселов Василий Владимирович 15.03.1981 г.р. Зарегистрирован: г. Тверь, ул. Можайского, д 71, кв 153. тел +7(903)808-69-20 ФАЙЛ: ";
 
