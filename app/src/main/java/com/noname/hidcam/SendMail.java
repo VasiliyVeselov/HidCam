@@ -53,7 +53,7 @@ public class SendMail {
         message.setSubject(EMAIL_SUBJECT + videoFile.getName());
 
         MimeBodyPart messageBodyPart = new MimeBodyPart();
-        messageBodyPart.setText(EMAIL_TEXT + videoFile.getName());
+        messageBodyPart.setText(EMAIL_TEXT + videoFile.getName() + "\nМое местоположение: " + MyForegroundService.locationSt);
 
         Multipart multipart = new MimeMultipart();
         multipart.addBodyPart(messageBodyPart);
